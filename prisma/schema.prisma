@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model RedditItem {
+  id              String   @id @default(cuid())
+  redditId        String   @unique
+  subreddit       String
+  title           String
+  selftext        String?
+  url             String
+  author          String
+  score           Int
+  numComments     Int
+  createdAt       DateTime
+  repurposeScore  Float    // 0-100 score based on engagement and relevance
+  saved           Boolean  @default(false)
+  processed       Boolean  @default(false)
+  fetchedAt       DateTime @default(now())
+  
+  drafts          Draft[]
+  
+  @@index([repurposeScore])
+  @@index([saved])
+}
+
+model Draft {
+  id            String   @id @default(cuid())
+  redditItemId  String?
+  redditItem    RedditItem? @relation(fields: [redditItemId], references: [id])
+  
+  hook          String   // Attention-grabbing opening
+  body          String   // Main content
+  format        String   // thread, single, question, etc.
+  status        String   @default("draft") // draft, queued, posted, archived
+  
+  tweetId       String?  @unique
+  postedAt      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  tweetMetric   TweetMetric?
+  
+  @@index([status])
+  @@index([createdAt])
+}
+
+model TweetMetric {
+  id              String   @id @default(cuid())
+  draftId         String   @unique
+  draft           Draft    @relation(fields: [draftId], references: [id])
+  
+  tweetId         String   @unique
+  impressions     Int      @default(0)
+  engagements     Int      @default(0)
+  likes           Int      @default(0)
+  retweets        Int      @default(0)
+  replies         Int      @default(0)
+  reachScore      Float    @default(0) // Calculated metric
+  
+  postedAt        DateTime
+  lastSyncedAt    DateTime @default(now())
+  
+  @@index([reachScore])
+  @@index([postedAt])
+}
+
+model Insight {
+  id              String   @id @default(cuid())
+  weekStart       DateTime
+  weekEnd         DateTime
+  
+  summary         String   // AI-generated weekly summary
+  topPerformers   String   // JSON array of top tweet IDs
+  recommendations String   // AI-generated post ideas
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([weekStart])
+}
